@@ -37,6 +37,42 @@ type Restaurant = {
 const Q = { Budget: 0, Kosher: 1, Kids: 2, Pets: 3, Cuisine: 4, Atmosphere: 5, BarOrCafe: 6, MinRating: 7, Done: 8 } as const;
 type Step = (typeof Q)[keyof typeof Q];
 
+/** ————— עזר לנרמול כל צורת תגובה ל־Restaurant[] ————— */
+function normalizeRestaurants(payload: any): Restaurant[] {
+  const raw = Array.isArray(payload)
+    ? payload
+    : payload?.results ?? payload?.data ?? payload?.rows ?? payload?.restaurants ?? [];
+
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((r: any, i: number): Restaurant => ({
+    id: String(
+      r.id ??
+        r._id ??
+        r.slug ??
+        r.place_id ??
+        (r.name ? r.name.replace(/\s+/g, "-").toLowerCase() : `row-${i}`)
+    ),
+    name: r.name ?? r.title ?? r.restaurant_name ?? r.place_name ?? "",
+    address: r.address ?? r.formatted_address ?? r.location ?? undefined,
+    price_per_person_min:
+      r.price_per_person_min ?? r.pp_min ?? r.price_min ?? r.min_price ?? undefined,
+    price_per_person_max:
+      r.price_per_person_max ?? r.pp_max ?? r.price_max ?? r.max_price ?? undefined,
+    kosher_status:
+      r.kosher_status ?? (r.mehadrin ? "mehadrin" : r.kosher ? "kosher" : "none"),
+    kids_friendly: r.kids_friendly ?? r.kid_friendly ?? r.kids ?? undefined,
+    pets_friendly: r.pets_friendly ?? r.pet_friendly ?? r.pets ?? undefined,
+    cuisines: r.cuisines ?? r.tags ?? r.categories ?? undefined,
+    atmosphere: r.atmosphere ?? r.vibe ?? undefined,
+    has_bar: r.has_bar ?? r.bar ?? undefined,
+    cafe_bistro: r.cafe_bistro ?? r.cafe ?? r.bistro ?? undefined,
+    rating: r.rating ?? r.google_rating ?? r.avg_rating ?? undefined,
+    booking_url: r.booking_url ?? r.url ?? r.reservation_url ?? r.link ?? undefined,
+    cover_image_url: r.cover_image_url ?? r.image ?? r.image_url ?? undefined,
+  }));
+}
+
 export default function Page() {
   const [step, setStep] = React.useState<Step>(Q.Budget);
   const [answers, setAnswers] = React.useState<Answers>({ minRating: 4 });
@@ -58,8 +94,17 @@ export default function Page() {
         body: JSON.stringify({ answers, page: reset ? 0 : page }),
       });
       const json = await res.json();
-      setOut((prev) => (reset ? (json.results || []) : [...prev, ...(json.results || [])]));
-      setPage(json.nextPage ?? 1);
+
+      const items = normalizeRestaurants(json);
+      setOut((prev) => (reset ? items : [...prev, ...items]));
+
+      // תמיכה גם ב-next_page / nextPage; ואם אין—נחשב ידנית לפי אם הגיעו תוצאות
+      const np = json?.nextPage ?? json?.next_page ?? null;
+      setPage(np ?? (reset ? 1 : page + (items.length ? 1 : 0)));
+
+      console.log("match response:", json, "normalized:", items);
+    } catch (e) {
+      console.error("fetchMatches failed:", e);
     } finally {
       setLoading(false);
     }
@@ -271,7 +316,7 @@ export default function Page() {
                 <div className="flex gap-2">
                   <div className="shrink-0 w-8 h-8 rounded-full bg-violet-100" />
                   <div className="bg-white border rounded-2xl px-3 py-2 shadow-sm">
-                    מוכן! הנה שלוש התאמות שמתאימות לך.
+                    מוכן! הנה התאמות שמתאימות לך.
                   </div>
                 </div>
                 <div className="grid gap-3 mt-2">
@@ -367,7 +412,7 @@ function Card({ r }: { r: Restaurant }) {
       )}
       <div className="p-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium">{r.name}</h3>
+          <h3 className="font-medium">{r.name || "—"}</h3>
           <span className="text-xs text-zinc-500">{r.rating ? `${r.rating}★` : "—"}</span>
         </div>
         <p className="text-sm text-zinc-600 line-clamp-2">{r.address}</p>
