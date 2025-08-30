@@ -183,8 +183,8 @@ export default function Page() {
             )}
             {step === Q.MinRating && (
               <div className="flex justify-end"><div className="bg-violet-600 text-white rounded-2xl px-3 py-2 max-w-[75%]"><div className="flex gap-2">
-                {[3.5,4,4.5].map(r => <button key={r} className={pill} onClick={()=>send({ minRating: r })}>{r}+</button>)}
-                <button className={pill} onClick={()=>send({ minRating: 0 })}>לא משנה</button>
+                {[3.5,4,4.5].map(r => <button key={r} className={pill} onClick={()=>send({ minR//ating: r })}>{r}+</button>)
+                <button className={pill} onClick={()=>send({ minRating: 0 })}>לא משנה</button
               </div></div></div>
             )}
 
@@ -198,8 +198,7 @@ export default function Page() {
               </>
             )}
 
-            {step === Q.MinRating && (
-              <div className="flex justify-center mt-3">
+{step >= Q.MinRating &&((              <div className="flex justify-center mt-3">
                 <button className="rounded-2xl bg-violet-600 text-white py-3 px-4" onClick={()=>{ setStep(Q.Done); fetchMatches(true); }}>
                   מצא מסעדות
                 </button>
